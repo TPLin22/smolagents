@@ -1,6 +1,20 @@
-from smolagents.agents import CodeAgent, ToolCallingAgent
-from smolagents import tool, LiteLLMModel
+from smolagents import tool, LiteLLMModel, HfApiModel, CodeAgent
+from smolagents import DuckDuckGoSearchTool, GoogleSearchTool, VisitWebpageTool
 from typing import Optional
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+HF_Token = os.getenv("HUGGINGFACE_TOKEN")
+ds_api_token = os.getenv("DEEPSEEK_API_TOKEN")
+
+# 配置 LLM 模型
+
+# model is "Qwen/Qwen2.5-Coder-32B-Instruct" by default, can be set by model_id
+model = HfApiModel(token=HF_Token) 
+# model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
+
 
 @tool
 def analyze_energy_impact(energy_price: float) -> str:
@@ -13,13 +27,15 @@ def analyze_energy_impact(energy_price: float) -> str:
     """
     return f"能源价格为 {energy_price} 时，玉米供应链的宏观经济影响分析报告..."
 
-# 配置 LLM 模型
-model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key="sk-5ca61f10491643eabe3c2de151b8c59e")
+search_tool = DuckDuckGoSearchTool()
+google_tool = GoogleSearchTool() # need to set SERPAPI_API_KEY
+visitweb_tool = VisitWebpageTool()
 
 # 创建宏观经济学家 Agent
-economist_agent = ToolCallingAgent(
-    tools=[analyze_energy_impact],
+market_analyst = CodeAgent(
+    tools=[visitweb_tool, search_tool],
     model=model,
+    description="市场分析专家，能结合历史政策、能源价格和玉米供需关系进行预测",
 )
 
-economist_agent.run("你是一个宏观经济学家，负责分析国际能源价格对玉米供应链的影响。")
+market_analyst.run("川普在上一任期采取了怎样的能源、粮食政策？结合2023-2024年的乙醇市场变化，预测2025年国内粮食市场的价格变化趋势。")
