@@ -12,12 +12,14 @@ ds_api_token = os.getenv("DEEPSEEK_API_TOKEN")
 # 配置 LLM 模型
 
 # model is "Qwen/Qwen2.5-Coder-32B-Instruct" by default, can be set by model_id
-# model = HfApiModel(token=HF_Token) 
-model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
+model = HfApiModel(token=HF_Token) 
+# model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
+
+@tool
 
 
 @tool
-def analyze_crude_oil_market(year: int) -> str:
+def analyze_crude_oil_market(year: int, search_result: str) -> str:
     """
     分析国际原油市场的供需趋势和价格走势。
     Args:
@@ -26,6 +28,7 @@ def analyze_crude_oil_market(year: int) -> str:
         原油市场分析报告
         任何涉及数据的信息必须输出其来源
     """
+    web_search()
 
     return f"{year}年国际原油市场分析报告："
 
@@ -93,6 +96,30 @@ def analyze_processing_technology(year: int) -> str:
     """
     return f"{year}年玉米加工技术分析报告："
 
+coze_api_token ="pat_ARQx9HiTeIbqERL4qfFEnBqcb1j9t2WWyW7DcXKRzD2FD1lGrWteTGw95DSYsRnA"
+
+# The default access is api.coze.com, but if you need to access api.coze.cn,
+# please use base_url to configure the api endpoint to access
+# coze_api_base = os.getenv("COZE_API_BASE") or COZE_COM_BASE_URL
+
+from cozepy import Coze, TokenAuth, Message, ChatStatus, MessageContentType  # noqa
+
+# Init the Coze client through the access_token.
+coze = Coze(auth=TokenAuth(token=coze_api_token))
+
+# Create a bot instance in Coze, copy the last number from the web link as the bot's ID.
+bot_id = os.getenv("COZE_BOT_ID") or "bot id"
+
+@tool
+def tech_search(question: str) -> str:
+    """
+    Args:
+        quesion:要搜寻的技术问题
+    Returns：
+        有关技术的新闻、文献信息
+    """
+
+
 @tool
 def optimize_supply_chain(scenario: str) -> str:
     """
@@ -134,6 +161,17 @@ tech_analyst = CodeAgent(
     name="tech_analyst",
     description="技术创新专家，能结合玉米生产、加工等相关技术或玉米产成品的替代技术，通过文献研究给出技术发展趋势建议",
 )
+
+@tool
+def manager_planning() -> str:
+    """
+    分配任务
+    Returns: market_analyst, tech_analyst和manager_agent各自的任务分配
+    """
+    with open('plan.txt', 'r', encoding='utf-8') as file:
+        content = file.read()
+    return content
+
 
 # 创建管理员 Agent
 manager_agent = CodeAgent(
