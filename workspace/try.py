@@ -183,6 +183,7 @@ market_analyst = CodeAgent(
     name="market_analyst",
     description="市场分析专家，通过分析国际能源与粮食政策、国际能源市场、国际粮食市场给出我国玉米市场生产与贸易的相关分析结果。",
     additional_authorized_imports=["time", "numpy", "pandas"],
+    max_steps=10,
 )
 
 
@@ -192,6 +193,7 @@ tech_analyst = CodeAgent(
     name="tech_analyst",
     description="技术创新专家，能结合玉米生产、加工等相关技术或玉米产成品的替代技术，通过文献研究给出技术发展趋势建议",
     additional_authorized_imports=["time", "numpy", "pandas"],
+    max_steps=10,
 )
 
 
@@ -215,6 +217,7 @@ manager_agent = CodeAgent(
     name="manager_agent",
     description="管理员，首先计划和分配子agent任务，随后负责整合市场分析和技术分析结果，随之提出供应链优化建议，并给出最终报告",
     additional_authorized_imports=["time", "numpy", "pandas"],
+    max_steps=10,
 )
 with open('prompt_templates/supply_prompt.txt', 'r', encoding='utf-8') as file:
     supply_prompt = file.read()
