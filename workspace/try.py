@@ -15,24 +15,56 @@ ds_api_token = os.getenv("DEEPSEEK_API_TOKEN")
 # 配置 LLM 模型
 
 # model is "Qwen/Qwen2.5-Coder-32B-Instruct" by default, can be set by model_id
-# model = HfApiModel(token=HF_Token) 
-model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
+model = HfApiModel(token=HF_Token) 
+# model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
 
 @tool
 def get_market_analysis_report_format() -> str:
     """
-    获取市场分析报告的格式模板。
+    在market_analyst最终输出报告前，获取其输出市场分析报告的格式模板。
     Returns:
         市场分析报告的格式模板
     """
     try:
-        with open('market_analysis_report_format.txt', 'r', encoding='utf-8') as file:
+        with open('report_format/market_analysis_report_format.txt', 'r', encoding='utf-8') as file:
             content = file.read()
         return content
     except FileNotFoundError:
         return "未找到市场分析报告格式文件，请确保文件 'market_analysis_report_format.txt' 存在。"
     except Exception as e:
         return f"读取市场分析报告格式文件时发生错误：{str(e)}"
+    
+@tool
+def get_tech_analysis_report_format() -> str:
+    """
+    在tech_analyst最终输出报告前，获取其输出技术分析报告的格式模板。
+    Returns:
+        技术分析报告的格式模板
+    """
+    try:
+        with open('report_format/tech_analysis_report_format.txt', 'r', encoding='utf-8') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        return "未找到技术分析报告格式文件，请确保文件 'tech_analysis_report_format.txt' 存在。"
+    except Exception as e:
+        return f"读取技术分析报告格式文件时发生错误：{str(e)}"
+    
+@tool
+def get_supply_chain_analysis_report_format() -> str:
+    """
+    在manager输出supply chain报告前，获取其输出供应链分析报告的格式模板。
+    Returns:
+        供应链分析报告的格式模板
+    """
+    try:
+        with open('report_format/supply_chain_report_format.txt', 'r', encoding='utf-8') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        return "未找到供应链分析报告格式文件，请确保文件 'supply_chain_report_format.txt' 存在。"
+    except Exception as e:
+        return f"读取供应链分析报告格式文件时发生错误：{str(e)}"
     
 
 # The default access is api.coze.com, but if you need to access api.coze.cn,
@@ -116,27 +148,32 @@ def tech_search(question: str) -> str:
         ans += message.content
     return ans
 
-
 @tool
-def optimize_supply_chain(scenario: str) -> str:
+def supply_chain_cases_search(question: str) -> str:
     """
-    根据市场和技术分析结果，提出供应链优化建议。
+    搜索供应链优化的有关经验以及国际大型粮食企业的成功案例
     Args:
-        scenario: 情景分析（基准、乐观、悲观）
+        question: 要搜寻的技术问题
     Returns:
-        供应链优化建议报告
+        供应链优化分析以及成功案例报告
     """
-    return f"供应链优化建议报告（{scenario}情景）：\n市场分析：{market_analysis}\n技术分析：{tech_analysis}"
+    coze = Coze(auth=TokenAuth(token=os.getenv("COZE_API_TOKEN")), base_url=COZE_CN_BASE_URL)
 
-@tool
-def search_successful_cases() -> str:
-    """
-    搜索国际大型粮食企业的成功案例。
-    Returns:
-        成功案例报告
-    """
-    return f"国际大型粮食企业成功案例报告："
+# Create a bot instance in Coze, copy the last number from the web link as the bot's ID.
 
+    chat_poll = coze.chat.create_and_poll(
+        # id of bot
+        bot_id='7475034370354053156',
+        # id of user, Note: The user_id here is specified by the developer, for example, it can be the
+        # business id in the developer system, and does not include the internal attributes of coze.
+        user_id='user_id',
+        # user input
+        additional_messages=[Message.build_user_question_text(question)]
+    )
+    ans = ""
+    for message in chat_poll.messages:
+        ans += message.content
+    return ans
 
 
 # 创建市场分析专家 Agent
@@ -144,13 +181,13 @@ market_analyst = CodeAgent(
     tools=[market_data_search, policy_search, get_market_analysis_report_format],
     model=model,
     name="market_analyst",
-    description="市场分析专家，通过2023-2024年的国际原油市场与国际燃料乙醇市场的变化（价格与供需趋势），结合川普上台后所采取或可能采取的能源发展政策，并参考2017年-2020年川普上台后的历史政策、国际能源市场、国际粮食市场的既往趋势，给出预期2025年-2027年国际国内粮食市场有关的趋势分析（如生产量、播种面积、价格走势），重点给出我国玉米市场生产与贸易的相关分析结果。",
+    description="市场分析专家，通过分析国际能源与粮食政策、国际能源市场、国际粮食市场给出我国玉米市场生产与贸易的相关分析结果。",
     additional_authorized_imports=["time", "numpy", "pandas"],
 )
 
 
 tech_analyst = CodeAgent(
-    tools=[tech_search],
+    tools=[tech_search, get_tech_analysis_report_format],
     model=model,
     name="tech_analyst",
     description="技术创新专家，能结合玉米生产、加工等相关技术或玉米产成品的替代技术，通过文献研究给出技术发展趋势建议",
@@ -169,30 +206,25 @@ def manager_planning() -> str:
         content = file.read()
     return content
 
-CHINESE_PROMPT_TEMPLATES = PromptTemplates(
-    system_prompt="You are a helpful analyst. You should give your answers in Chinese.",
-    planning=PlanningPromptTemplate(
-        initial_facts="",
-        initial_plan="",
-        update_facts_pre_messages="",
-        update_facts_post_messages="",
-        update_plan_pre_messages="",
-        update_plan_post_messages="",
-    ),
-    managed_agent=ManagedAgentPromptTemplate(task="", report=manager_planning()),
-    final_answer=FinalAnswerPromptTemplate(pre_messages="", post_messages=""),
-)
 
 # 创建管理员 Agent
 manager_agent = CodeAgent(
-    tools=[manager_planning],
+    tools=[manager_planning, supply_chain_cases_search, get_supply_chain_analysis_report_format],
     model=model,
-    managed_agents=[tech_analyst, market_analyst],
+    managed_agents=[market_analyst, tech_analyst],
     name="manager_agent",
-    description="管理员，首先计划和分配子agent任务，随后负责整合市场分析和技术分析结果，提出供应链优化建议，给出最终报告",
-    prompt_templates=CHINESE_PROMPT_TEMPLATES,
-    #report=manager_planning(),
+    description="管理员，首先计划和分配子agent任务，随后负责整合市场分析和技术分析结果，随之提出供应链优化建议，并给出最终报告",
     additional_authorized_imports=["time", "numpy", "pandas"],
 )
+with open('prompt_templates/supply_prompt.txt', 'r', encoding='utf-8') as file:
+    supply_prompt = file.read()
+with open('prompt_templates/task_prompt.txt', 'r', encoding='utf-8') as file:
+    task_prompt = file.read()
+
+manager_agent.prompt_templates["system_prompt"] += supply_prompt
+market_analyst.prompt_templates["managed_agent"]["task"]=task_prompt
+tech_analyst.prompt_templates["managed_agent"]["task"]=task_prompt
+
+# print(manager_agent.prompt_templates["system_prompt"])
 
 manager_agent.run("请给出一份2025年-2027年玉米供应链优化建议报告")
