@@ -1,5 +1,6 @@
 from smolagents import tool, LiteLLMModel, HfApiModel, CodeAgent
 from smolagents import DuckDuckGoSearchTool, GoogleSearchTool, VisitWebpageTool
+from smolagents import PromptTemplates, PlanningPromptTemplate, ManagedAgentPromptTemplate, FinalAnswerPromptTemplate
 from typing import Optional
 from dotenv import load_dotenv
 import os
@@ -18,88 +19,74 @@ ds_api_token = os.getenv("DEEPSEEK_API_TOKEN")
 model = LiteLLMModel(model_id="deepseek/deepseek-chat", api_key=ds_api_token)
 
 @tool
-def analyze_crude_oil_market(year: int) -> str:
+def get_market_analysis_report_format() -> str:
     """
-    分析国际原油市场的供需趋势和价格走势。
-    Args:
-        year: 分析的年份
+    获取市场分析报告的格式模板。
     Returns:
-        原油市场分析报告
-        任何涉及数据的信息必须输出其来源
+        市场分析报告的格式模板
     """
-
-    return f"{year}年国际原油市场分析报告："
-
-@tool
-def analyze_fuel_ethanol_market(year: int) -> str:
-    """
-    分析国际燃料乙醇市场的供需趋势和价格走势。
-    Args:
-        year: 分析的年份
-    Returns:
-        燃料乙醇市场分析报告
-        任何涉及数据的信息必须输出其来源
-    """
-
-    return f"{year}年国际燃料乙醇市场分析报告："
-
-@tool
-def predict_corn_market(year: int, scenario: str) -> str:
-    """
-    预测国际和国内玉米市场的生产量、播种面积和价格走势。
-    Args:
-        year: 预测的年份
-        scenario: 情景分析（基准、乐观、悲观）
-    Returns:
-        玉米市场预测报告
-        任何涉及数据的信息必须输出其来源
-    """
-  
-    return f"{year}年玉米市场预测报告（{scenario}情景）："
-
-@tool
-def analyze_seed_technology(year: int) -> str:
-    """
-    分析玉米种子技术的发展趋势。
-    Args:
-        year: 分析的年份
-    Returns:
-        种子技术分析报告
-        必须输出其来源
-    """
-
-    return f"{year}年玉米种子技术分析报告："
-
-@tool
-def analyze_production_technology(year: int) -> str:
-    """
-    分析玉米生产技术（如滴灌）的发展趋势。
-    Args:
-        year: 分析的年份
-    Returns:
-        生产技术分析报告
-        必须输出其来源
-    """
-    return f"{year}年玉米生产技术分析报告："
-
-@tool
-def analyze_processing_technology(year: int) -> str:
-    """
-    分析玉米加工技术的发展趋势。
-    Args:
-        year: 分析的年份
-    Returns:
-        加工技术分析报告
-        必须输出其来源
-    """
-    return f"{year}年玉米加工技术分析报告："
-
+    try:
+        with open('market_analysis_report_format.txt', 'r', encoding='utf-8') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        return "未找到市场分析报告格式文件，请确保文件 'market_analysis_report_format.txt' 存在。"
+    except Exception as e:
+        return f"读取市场分析报告格式文件时发生错误：{str(e)}"
+    
 
 # The default access is api.coze.com, but if you need to access api.coze.cn,
 # please use base_url to configure the api endpoint to access
 # coze_api_base = os.getenv("COZE_API_BASE") or COZE_COM_BASE_URL
 
 # Init the Coze client through the access_token.
+@tool
+def market_data_search(question: str) -> str:
+    """
+    根据提问，搜索市场相关数据（如价格、供需趋势等）。
+    Args:
+        question: 要搜索的市场问题
+    Returns:
+        市场相关数据信息
+    """
+    coze = Coze(auth=TokenAuth(token=os.getenv("COZE_API_TOKEN")), base_url=COZE_CN_BASE_URL)
+
+    # 创建并调用 Coze 聊天机器人
+    chat_poll = coze.chat.create_and_poll(
+        bot_id='7474855849769402419',  # 替换为你的市场数据搜索机器人 ID
+        user_id='user_id',  # 替换为你的用户 ID
+        additional_messages=[Message.build_user_question_text(question)]
+    )
+
+    # 提取并返回聊天结果
+    ans = ""
+    for message in chat_poll.messages:
+        ans += message.content
+    return ans
+
+@tool
+def policy_search(question: str) -> str:
+    """
+    根据提问，搜索与市场相关的政策信息。
+    Args:
+        question: 要搜索的政策问题
+    Returns:
+        政策相关信息
+    """
+    coze = Coze(auth=TokenAuth(token=os.getenv("COZE_API_TOKEN")), base_url=COZE_CN_BASE_URL)
+
+    # 创建并调用 Coze 聊天机器人
+    chat_poll = coze.chat.create_and_poll(
+        bot_id='7474855849769402419',  # 替换为你的政策搜索机器人 ID
+        user_id='user_id',  # 替换为你的用户 ID
+        additional_messages=[Message.build_user_question_text(question)]
+    )
+
+    # 提取并返回聊天结果
+    ans = ""
+    for message in chat_poll.messages:
+        ans += message.content
+    return ans
 
 
 @tool
@@ -139,8 +126,6 @@ def optimize_supply_chain(scenario: str) -> str:
     Returns:
         供应链优化建议报告
     """
-    market_analysis = market_analyst.predict_corn_market(2025, scenario)
-    tech_analysis = tech_analyst.analyze_seed_technology(2025)
     return f"供应链优化建议报告（{scenario}情景）：\n市场分析：{market_analysis}\n技术分析：{tech_analysis}"
 
 @tool
@@ -152,36 +137,31 @@ def search_successful_cases() -> str:
     """
     return f"国际大型粮食企业成功案例报告："
 
-search_tool = DuckDuckGoSearchTool()
-# google_tool = GoogleSearchTool() # need to set SERPAPI_API_KEY
-# visitweb_tool = VisitWebpageTool()
+
 
 # 创建市场分析专家 Agent
 market_analyst = CodeAgent(
-    tools=[analyze_crude_oil_market, analyze_fuel_ethanol_market, predict_corn_market, search_tool],
+    tools=[market_data_search, policy_search, get_market_analysis_report_format],
     model=model,
     name="market_analyst",
-    description="市场分析专家，能结合特朗普上一任期的历史政策、原油和燃料乙醇市场的价格历史数据对玉米供需关系进行预测",
+    description="市场分析专家，通过2023-2024年的国际原油市场与国际燃料乙醇市场的变化（价格与供需趋势），结合川普上台后所采取或可能采取的能源发展政策，并参考2017年-2020年川普上台后的历史政策、国际能源市场、国际粮食市场的既往趋势，给出预期2025年-2027年国际国内粮食市场有关的趋势分析（如生产量、播种面积、价格走势），重点给出我国玉米市场生产与贸易的相关分析结果。",
+    additional_authorized_imports=["time", "numpy", "pandas"],
 )
 
-# 创建技术创新专家 Agent
-"""tech_analyst = CodeAgent(
-    tools=[analyze_seed_technology, analyze_production_technology, analyze_processing_technology, search_tool],
-    model=model,
-    name="tech_analyst",
-    description="技术创新专家，能结合玉米生产、加工等相关技术或玉米产成品的替代技术，通过文献研究给出技术发展趋势建议",
-)"""
+
 tech_analyst = CodeAgent(
     tools=[tech_search],
     model=model,
     name="tech_analyst",
     description="技术创新专家，能结合玉米生产、加工等相关技术或玉米产成品的替代技术，通过文献研究给出技术发展趋势建议",
+    additional_authorized_imports=["time", "numpy", "pandas"],
 )
 
 
 @tool
 def manager_planning() -> str:
     """
+    This should be called first by the manager to allocate tasks to market_analyst, tech_analyst and manager_agent.
     分配任务
     Returns: market_analyst, tech_analyst和manager_agent各自的任务分配
     """
@@ -189,14 +169,29 @@ def manager_planning() -> str:
         content = file.read()
     return content
 
+CHINESE_PROMPT_TEMPLATES = PromptTemplates(
+    system_prompt="You are a helpful analyst. You should give your answers in Chinese.",
+    planning=PlanningPromptTemplate(
+        initial_facts="",
+        initial_plan="",
+        update_facts_pre_messages="",
+        update_facts_post_messages="",
+        update_plan_pre_messages="",
+        update_plan_post_messages="",
+    ),
+    managed_agent=ManagedAgentPromptTemplate(task="", report=manager_planning()),
+    final_answer=FinalAnswerPromptTemplate(pre_messages="", post_messages=""),
+)
 
 # 创建管理员 Agent
 manager_agent = CodeAgent(
-    tools=[],
+    tools=[manager_planning],
     model=model,
-    managed_agents=[tech_analyst, manager_planning],
+    managed_agents=[tech_analyst, market_analyst],
     name="manager_agent",
-    description="管理员，负责整合技术分析结果，提出供应链优化建议，给出最终报告",
+    description="管理员，首先计划和分配子agent任务，随后负责整合市场分析和技术分析结果，提出供应链优化建议，给出最终报告",
+    prompt_templates=CHINESE_PROMPT_TEMPLATES,
+    #report=manager_planning(),
     additional_authorized_imports=["time", "numpy", "pandas"],
 )
 
