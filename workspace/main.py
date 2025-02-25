@@ -55,7 +55,7 @@ from smolagents import Tool
 
 class RetrieverTool(Tool):
     name = "retriever"
-    description = "使用语义搜索从本地文档中检索与查询最相关的内容。该文档的内容是关于国际能源价格对粮食供应链的动态影响研究的，可以为粮食供应链的市场分析、供应链优化提供建议。"
+    description = "使用语义搜索从本地文档中检索与查询最相关的内容。该文档的内容是关于国际能源价格对粮食供应链的动态影响研究的，可以为粮食供应链的市场分析、供应链优化提供建议。该工具每个Agent只需要调用一次."
     inputs = {
         "query": {
             "type": "string",
@@ -66,7 +66,7 @@ class RetrieverTool(Tool):
 
     def __init__(self, docs, **kwargs):
         super().__init__(**kwargs)
-        self.retriever = BM25Retriever.from_documents(docs, k=2)  # 检索前 5 个相关文档
+        self.retriever = BM25Retriever.from_documents(docs, k=1)  # 检索前 1 个相关文档
 
     def forward(self, query: str) -> str:
         assert isinstance(query, str), "查询必须为字符串"
@@ -86,6 +86,7 @@ retriever_tool = RetrieverTool(docs_processed)
 def get_market_analysis_report_format() -> str:
     """
     在market_analyst最终输出报告前，获取其输出市场分析报告的格式模板。
+    
     Returns:
         市场分析报告的格式模板
     """
@@ -140,6 +141,7 @@ def get_supply_chain_analysis_report_format() -> str:
 def market_data_search(question: str) -> str:
     """
     根据提问，搜索市场相关数据（如价格、供需趋势等）。不要把问题拆解成太多来提问。
+    不要使用此工具超过三次.
     Args:
         question: 要搜索的市场问题
     Returns:
@@ -164,6 +166,7 @@ def market_data_search(question: str) -> str:
 def policy_search(question: str) -> str:
     """
     根据提问，搜索与市场相关的政策信息。
+    不要使用此工具超过三次.
     Args:
         question: 要搜索的政策问题
     Returns:
@@ -189,6 +192,7 @@ def policy_search(question: str) -> str:
 def tech_search(question: str) -> str:
     """
     根据提问，输出有关发展技术的新闻、文献信息。
+    不要使用此工具超过两次.
     Args:
         question: 要搜寻的技术问题
     Returns:
@@ -216,6 +220,7 @@ def tech_search(question: str) -> str:
 def supply_chain_cases_search(question: str) -> str:
     """
     搜索供应链优化的有关经验以及国际大型粮食企业的成功案例
+    不要使用此工具超过两次.
     Args:
         question: 要搜寻的技术问题
     Returns:
